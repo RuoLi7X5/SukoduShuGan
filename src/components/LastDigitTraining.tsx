@@ -49,7 +49,7 @@ export default function LastDigitTraining() {
     generateProblem();
   }, [generateProblem]);
 
-  const handleInput = (num: number) => {
+  const handleInput = useCallback((num: number) => {
     if (!problem) return;
 
     const timeTaken = Date.now() - startTime;
@@ -64,7 +64,19 @@ export default function LastDigitTraining() {
       setLastResult('wrong');
       generateProblem(); 
     }
-  };
+  }, [problem, startTime, addRecord, generateProblem]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const num = parseInt(e.key);
+      if (!isNaN(num) && num >= 1 && num <= 9) {
+        handleInput(num);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [handleInput]);
 
   const accuracy = stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0;
   const avgTime = stats.correct > 0 ? Math.round(stats.totalTime / stats.correct) : 0;
@@ -220,8 +232,8 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
   const containerClass = type === 'block' 
     ? "grid grid-cols-3 gap-2 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10" 
     : type === 'row'
-      ? "grid grid-cols-9 gap-px p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-w-full overflow-hidden"
-      : "grid grid-rows-9 grid-flow-col gap-px p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-h-[60vh] overflow-hidden"; // col
+      ? "grid grid-cols-9 gap-0 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-w-full overflow-hidden"
+      : "grid grid-rows-9 grid-flow-col gap-0 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-h-[60vh] overflow-hidden"; // col
 
   // Dynamic cell size based on type
   const cellSize = type === 'block' 
@@ -238,9 +250,10 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
             font-bold rounded-lg
             ${cellSize}
             transition-all duration-300
+            border-[0.5px] border-slate-700/50
             ${num === null 
-              ? 'bg-blue-500/10 border-2 border-dashed border-blue-500/30 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' 
-              : 'bg-slate-800 text-slate-200 border border-white/5 shadow-lg'
+              ? 'bg-blue-500/10 !border-2 !border-dashed !border-blue-500/30 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' 
+              : 'bg-slate-800 text-slate-200 !border-white/5 shadow-lg'
             }
           `}
         >
