@@ -229,7 +229,7 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
     : "w-10 h-10 sm:w-14 sm:h-14 text-2xl sm:text-3xl";
 
   return (
-    <div className={containerClass}>
+    <div className={`${containerClass} font-sans`}>
       {grid.map((num, idx) => (
         <div 
           key={idx}

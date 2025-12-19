@@ -164,7 +164,7 @@ export default function SlicingTraining() {
               </div>
               
               <div className="relative border-4 border-slate-900 select-none bg-slate-900 shadow-2xl rounded-xl overflow-hidden ring-1 ring-white/10">
-                <div className="grid grid-cols-9 grid-rows-9 bg-slate-600 gap-px">
+                <div className="grid grid-cols-9 grid-rows-9 bg-slate-600 gap-px border border-slate-600">
                   {problem.grid.map((num, idx) => {
                     const row = Math.floor(idx / 9);
                     const col = idx % 9;
@@ -178,7 +178,7 @@ export default function SlicingTraining() {
                         onClick={() => handleCellClick(idx)}
                         className={twMerge(
                           "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center text-xl md:text-2xl cursor-pointer transition-all duration-200 relative",
-                          "bg-slate-900 hover:bg-rose-500/20 text-slate-200 font-sans", // Default cell style, added font-sans
+                          "bg-slate-900 hover:bg-rose-500/20 text-slate-200 font-sans", // Default cell style
                           isRightBlockBorder && "border-r-2 border-slate-500", 
                           isBottomBlockBorder && "border-b-2 border-slate-500", 
                           num !== null && "bg-slate-800 text-slate-400 font-medium cursor-default hover:bg-slate-800", // Filled cell

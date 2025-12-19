@@ -12,8 +12,8 @@ function App() {
       {mode === 'home' && (
         <div className="max-w-4xl mx-auto">
           <div className="text-center py-12 md:py-20 relative">
-            {/* Background Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-blue-500/20 blur-[100px] rounded-full pointer-events-none"></div>
+            {/* Background Glow - Optimized with Radial Gradient instead of Blur for performance */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-[radial-gradient(circle,rgba(59,130,246,0.15)_0%,rgba(0,0,0,0)_70%)] pointer-events-none"></div>
 
             <h2 className="relative text-4xl md:text-6xl font-extrabold text-white mb-6 tracking-tight drop-shadow-lg">
               提升你的<span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-400">数独直觉</span>
@@ -52,13 +52,18 @@ function App() {
 }
 
 function ModeCard({ title, subtitle, description, icon, gradient, glowColor, onClick }: any) {
+  // Map glowColor class (e.g. 'bg-blue-500') to a hex/rgba for gradient if possible, 
+  // or just use a simplified approach. Since we can't easily parse the class string to color in runtime without a map,
+  // we'll stick to a simpler optimization: disable backdrop-blur on mobile.
+  
   return (
     <button 
       onClick={onClick}
-      className="group relative bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-8 text-left hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
+      className="group relative bg-white/5 md:backdrop-blur-sm border border-white/10 rounded-3xl p-8 text-left hover:bg-white/10 hover:border-white/20 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 overflow-hidden"
     >
       <div className={`absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-30 transition-opacity`}>
-        <div className={`w-40 h-40 rounded-full ${glowColor} blur-[60px]`}></div>
+        {/* Optimized glow using reduced blur radius on mobile or gradient */}
+        <div className={`w-32 h-32 md:w-40 md:h-40 rounded-full ${glowColor} blur-[40px] md:blur-[60px]`}></div>
       </div>
       
       <div className={`bg-gradient-to-br ${gradient} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-black/20 group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>

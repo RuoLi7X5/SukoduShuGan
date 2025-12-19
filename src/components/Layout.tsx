@@ -21,7 +21,7 @@ export function Layout({ children, currentMode, onNavigate }: LayoutProps) {
     <div className="min-h-screen bg-slate-900 flex flex-col font-sans text-slate-100 selection:bg-blue-500/30">
       <div className="fixed inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none z-0"></div>
       
-      <header className="bg-slate-900/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-50">
+      <header className="bg-slate-900 md:bg-slate-900/80 md:backdrop-blur-md border-b border-white/5 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div 
@@ -29,7 +29,7 @@ export function Layout({ children, currentMode, onNavigate }: LayoutProps) {
               onClick={() => onNavigate('home')}
             >
               <div className="relative">
-                <div className="absolute inset-0 bg-blue-500 blur-lg opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                <div className="absolute inset-0 bg-blue-500 blur-md md:blur-lg opacity-40 group-hover:opacity-60 transition-opacity"></div>
                 <div className="relative bg-gradient-to-br from-blue-600 to-indigo-600 p-2 rounded-xl shadow-lg shadow-blue-500/20 group-hover:shadow-blue-500/40 transition-all border border-white/10">
                   <Grid3X3 className="w-6 h-6 text-white" />
                 </div>
