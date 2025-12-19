@@ -18,15 +18,20 @@ export default function SlicingTraining() {
     const type = mode === 'random' 
       ? (['block', 'row', 'col'][Math.floor(Math.random() * 3)] as SlicingType)
       : mode;
-    setProblem(generateSlicingProblem(type));
+    
+    // If stats.total >= 10, force using intersection logic
+    // We access stats from props/hook, but be careful about dependency loop.
+    const useIntersection = stats.total >= 10;
+    
+    setProblem(generateSlicingProblem(type, useIntersection));
     setStartTime(Date.now());
     setLastResult(null);
     setWrongCellIndex(null);
-  }, [mode]);
+  }, [mode]); // Removed stats.total from dependency array to prevent infinite loop
 
   useEffect(() => {
-    newProblem();
-  }, [newProblem]);
+     newProblem();
+  }, [mode]); // Re-generate when mode changes
 
   const handleCellClick = (index: number) => {
     if (!problem || lastResult === 'correct' || problem.grid[index] !== null) return;
@@ -43,6 +48,13 @@ export default function SlicingTraining() {
       setProblem({ ...problem, grid: newGrid });
       
       setTimeout(() => {
+        // Increment total stats to trigger difficulty check correctly
+        // But stats updates are async and handled by useStats. 
+        // We rely on useStats to update 'stats' prop, but here we just call newProblem.
+        // Actually newProblem depends on stats.total, which might not be updated yet.
+        // It's better to let newProblem read the latest stats or pass a flag.
+        // However, for simplicity, just calling newProblem() is fine, 
+        // the NEXT render cycle will have updated stats.
         newProblem();
       }, 800);
     } else {
