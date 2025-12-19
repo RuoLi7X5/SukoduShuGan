@@ -163,7 +163,12 @@ export function generateSlicingProblem(type: SlicingType): SlicingProblem {
   for (let k = 0; k < 15; k++) {
     const r = Math.floor(Math.random() * 9);
     const c = Math.floor(Math.random() * 9);
-    if (grid[r * 9 + c] === null) {
+    const idx = r * 9 + c;
+    
+    // CRITICAL FIX: Never place a noise number in the target cell!
+    if (idx === targetIndex) continue;
+
+    if (grid[idx] === null) {
       const n = Math.floor(Math.random() * 9) + 1;
       if (n !== targetNum && isSafe(r, c, n)) { // Don't place targetNum randomly, only as slicers
         placeNum(r, c, n);

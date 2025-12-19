@@ -82,7 +82,7 @@ export default function LastDigitTraining() {
     <div className="flex flex-col lg:flex-row gap-6 items-start justify-center max-w-6xl mx-auto p-4 animate-fade-in">
       {/* Settings & Stats - Left */}
       <div className="w-full lg:w-72 space-y-6">
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl">
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl relative z-20">
           <h3 className="font-bold text-slate-300 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
             <Trophy className="w-4 h-4 text-blue-400" />
             模式选择
@@ -219,8 +219,13 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
   const containerClass = type === 'block' 
     ? "grid grid-cols-3 gap-2 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10" 
     : type === 'row'
-      ? "grid grid-cols-9 gap-2 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10"
-      : "grid grid-rows-9 grid-flow-col gap-2 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10"; // col
+      ? "grid grid-cols-9 gap-1 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-w-full overflow-hidden"
+      : "grid grid-rows-9 grid-flow-col gap-1 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-h-[60vh] overflow-hidden"; // col
+
+  // Dynamic cell size based on type
+  const cellSize = type === 'block' 
+    ? "w-20 h-20 sm:w-24 sm:h-24 text-4xl sm:text-5xl" 
+    : "w-10 h-10 sm:w-14 sm:h-14 text-2xl sm:text-3xl";
 
   return (
     <div className={containerClass}>
@@ -229,8 +234,8 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
           key={idx}
           className={`
             flex items-center justify-center 
-            text-4xl sm:text-5xl font-bold rounded-xl
-            w-20 h-20 sm:w-24 sm:h-24
+            font-bold rounded-lg
+            ${cellSize}
             transition-all duration-300
             ${num === null 
               ? 'bg-blue-500/10 border-2 border-dashed border-blue-500/30 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' 

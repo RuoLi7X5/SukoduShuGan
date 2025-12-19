@@ -71,7 +71,7 @@ export default function SlicingTraining() {
     <div className="flex flex-col lg:flex-row gap-6 items-start justify-center max-w-6xl mx-auto p-4 animate-fade-in">
       {/* Settings & Stats */}
       <div className="w-full lg:w-80 space-y-6">
-        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl">
+        <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl relative z-20">
           <h3 className="font-bold text-slate-300 mb-4 flex items-center gap-2 text-sm uppercase tracking-wider">
             <Trophy className="w-4 h-4 text-rose-400" />
             模式选择
