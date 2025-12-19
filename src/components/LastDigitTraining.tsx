@@ -79,7 +79,7 @@ export default function LastDigitTraining() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start justify-center max-w-6xl mx-auto p-4 animate-fade-in">
+    <div className="flex flex-col lg:flex-row gap-4 md:gap-6 items-start justify-center max-w-6xl mx-auto p-2 md:p-4 animate-fade-in font-sans">
       {/* Settings & Stats - Left */}
       <div className="w-full lg:w-72 space-y-6">
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl relative z-20">
@@ -153,11 +153,16 @@ export default function LastDigitTraining() {
 
       {/* Game Area - Center */}
       <div className="flex-1 w-full flex flex-col items-center">
-        <div className="w-full bg-slate-800/50 backdrop-blur-md rounded-3xl shadow-2xl border border-white/5 p-8 md:p-12 min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden group">
+        <div className="w-full bg-slate-800/50 backdrop-blur-md rounded-3xl shadow-2xl border border-white/5 p-6 md:p-12 min-h-[350px] md:min-h-[450px] flex flex-col items-center justify-center relative overflow-hidden group">
           
+          <div className="absolute top-4 md:top-6 left-1/2 -translate-x-1/2 text-slate-500 text-sm flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full border border-white/5 whitespace-nowrap z-10">
+            <AlertCircle className="w-4 h-4" />
+            <span>请找出缺失的数字</span>
+          </div>
+
           {/* Status Feedback Overlay */}
           {lastResult && (
-            <div className={`absolute top-6 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-fade-in z-20 backdrop-blur-sm border ${
+            <div className={`absolute top-16 md:top-20 left-1/2 -translate-x-1/2 px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-fade-in z-20 backdrop-blur-sm border ${
               lastResult === 'correct' 
                 ? 'bg-green-500/20 text-green-300 border-green-500/30' 
                 : 'bg-red-500/20 text-red-300 border-red-500/30'
@@ -167,20 +172,16 @@ export default function LastDigitTraining() {
           )}
 
           {problem && (
-            <div className={`transition-all duration-200 ${lastResult === 'wrong' ? 'animate-shake' : ''}`}>
+            <div className={`transition-all duration-200 mt-8 md:mt-0 ${lastResult === 'wrong' ? 'animate-shake' : ''}`}>
                <GridDisplay grid={problem.grid} type={problem.type} />
             </div>
           )}
           
-          <div className="mt-12 text-slate-500 text-sm flex items-center gap-2 bg-black/20 px-4 py-2 rounded-full border border-white/5">
-            <AlertCircle className="w-4 h-4" />
-            <span>请找出缺失的数字</span>
-          </div>
         </div>
       </div>
 
       {/* Keypad - Right */}
-      <div className="w-full lg:w-56">
+      <div className="w-full lg:w-56 mt-2 md:mt-0">
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl">
           <div className="grid grid-cols-3 gap-2">
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
@@ -219,8 +220,8 @@ function GridDisplay({ grid, type }: { grid: (number | null)[], type: 'block' | 
   const containerClass = type === 'block' 
     ? "grid grid-cols-3 gap-2 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10" 
     : type === 'row'
-      ? "grid grid-cols-9 gap-1 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-w-full overflow-hidden"
-      : "grid grid-rows-9 grid-flow-col gap-1 p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-h-[60vh] overflow-hidden"; // col
+      ? "grid grid-cols-9 gap-px p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-w-full overflow-hidden"
+      : "grid grid-rows-9 grid-flow-col gap-px p-2 bg-slate-900 rounded-2xl shadow-inner border border-white/10 max-h-[60vh] overflow-hidden"; // col
 
   // Dynamic cell size based on type
   const cellSize = type === 'block' 
