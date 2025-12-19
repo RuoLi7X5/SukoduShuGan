@@ -188,7 +188,6 @@ function tryGenerate(type: SlicingType, useIntersection: boolean): SlicingProble
     if (idx === targetIndex) continue;
 
     if (grid[idx] === null) {
-      const n = Math.floor(Math.random() * 9) + 1;
       // If we want to encourage Intersection logic for TargetNum, 
       // we should NOT place TargetNum randomly as noise too often (it might over-simplify).
       // But we DO need TargetNum to form the restricting blocks.
@@ -198,13 +197,7 @@ function tryGenerate(type: SlicingType, useIntersection: boolean): SlicingProble
       const numToPlace = placeTarget ? targetNum : (Math.floor(Math.random() * 9) + 1);
 
       if (isSafe(r, c, numToPlace)) {
-        if (numToPlace === targetNum) {
-            // Only place if it doesn't invalidate our target position (already checked by isSafe for row/col/block)
-            // But isSafe checks grid state.
-            placeNum(r, c, numToPlace);
-        } else {
-            placeNum(r, c, numToPlace);
-        }
+        placeNum(r, c, numToPlace);
       }
     }
   }
@@ -274,9 +267,6 @@ function solve(grid: (number|null)[], targetNum: number, targetIndex: number): b
     // Actually, we need to check if TargetIndex is the ONLY candidate left in the whole board? 
     // No, just in its Row, Col, or Block.
     // If in the Target's Block, only TargetIndex is true, then it's solved.
-    
-    const tr = Math.floor(targetIndex / 9);
-    const tc = targetIndex % 9;
     
     // Final Verification:
     // We must ensure that targetIndex is the ONLY forced move on the entire board for targetNum.
