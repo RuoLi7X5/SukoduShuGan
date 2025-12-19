@@ -80,7 +80,7 @@ export default function SlicingTraining() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 items-start justify-center max-w-6xl mx-auto p-4 animate-fade-in">
+    <div className="flex flex-col lg:flex-row gap-6 items-start justify-center max-w-6xl mx-auto p-4 animate-fade-in font-sans">
       {/* Settings & Stats */}
       <div className="w-full lg:w-80 space-y-6">
         <div className="bg-white/5 backdrop-blur-md border border-white/10 p-6 rounded-3xl shadow-xl relative z-20">
@@ -164,7 +164,7 @@ export default function SlicingTraining() {
               </div>
               
               <div className="relative border-4 border-slate-900 select-none bg-slate-900 shadow-2xl rounded-xl overflow-hidden ring-1 ring-white/10">
-                <div className="grid grid-cols-9 grid-rows-9 gap-[1px] bg-slate-600">
+                <div className="grid grid-cols-9 grid-rows-9 bg-slate-600 gap-px">
                   {problem.grid.map((num, idx) => {
                     const row = Math.floor(idx / 9);
                     const col = idx % 9;
@@ -178,7 +178,7 @@ export default function SlicingTraining() {
                         onClick={() => handleCellClick(idx)}
                         className={twMerge(
                           "w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 flex items-center justify-center text-xl md:text-2xl cursor-pointer transition-all duration-200 relative",
-                          "bg-slate-900 hover:bg-rose-500/20 text-slate-200", // Default cell style
+                          "bg-slate-900 hover:bg-rose-500/20 text-slate-200 font-sans", // Default cell style, added font-sans
                           isRightBlockBorder && "border-r-2 border-slate-500", 
                           isBottomBlockBorder && "border-b-2 border-slate-500", 
                           num !== null && "bg-slate-800 text-slate-400 font-medium cursor-default hover:bg-slate-800", // Filled cell
