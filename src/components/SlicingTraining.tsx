@@ -7,7 +7,7 @@ import { Menu, Transition } from '@headlessui/react';
 import React from 'react';
 
 export default function SlicingTraining() {
-  const [mode, setMode] = useState<SlicingType | 'random'>('block');
+  const [mode, setMode] = useState<SlicingType | 'random'>('random');
   const [problem, setProblem] = useState<SlicingProblem | null>(null);
   const [startTime, setStartTime] = useState<number>(0);
   const { stats, addRecord, resetStats } = useStats('slicing-stats');
@@ -15,23 +15,39 @@ export default function SlicingTraining() {
   const [wrongCellIndex, setWrongCellIndex] = useState<number | null>(null);
 
   const newProblem = useCallback(() => {
-    const type = mode === 'random' 
-      ? (['block', 'row', 'col'][Math.floor(Math.random() * 3)] as SlicingType)
-      : mode;
-    
-    // If stats.total >= 10, force using intersection logic
-    // We access stats from props/hook, but be careful about dependency loop.
-    const useIntersection = stats.total >= 10;
-    
-    setProblem(generateSlicingProblem(type, useIntersection));
+    try {
+      let type: SlicingType;
+      
+      if (mode === 'random') {
+        const rand = Math.random();
+        if (rand < 0.2) type = 'block';      // 20%
+        else if (rand < 0.6) type = 'row';   // 40%
+        else type = 'col';                   // 40%
+      } else {
+        type = mode;
+      }
+      
+      // If stats.total >= 10, force using intersection logic
+      const useIntersection = stats.total >= 10;
+      
+      setProblem(generateSlicingProblem(type, useIntersection));
+    } catch (error) {
+      console.error("Failed to generate problem:", error);
+      // Fallback to simple random problem without intersection if generation fails
+      try {
+        setProblem(generateSlicingProblem('block', false));
+      } catch (e) {
+        console.error("Critical failure in problem generation:", e);
+      }
+    }
     setStartTime(Date.now());
     setLastResult(null);
     setWrongCellIndex(null);
-  }, [mode]); // Removed stats.total from dependency array to prevent infinite loop
+  }, [mode, stats.total]); // Re-create when stats.total changes to check for difficulty threshold
 
   useEffect(() => {
      newProblem();
-  }, [mode]); // Re-generate when mode changes
+  }, [mode]); // Only auto-generate when mode changes (not when stats change)
 
   const handleCellClick = (index: number) => {
     if (!problem || lastResult === 'correct' || problem.grid[index] !== null) return;

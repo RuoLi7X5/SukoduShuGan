@@ -1,4 +1,3 @@
-// src/utils/slicingGenerator.ts
 
 export type SlicingType = 'block' | 'row' | 'col';
 
@@ -9,18 +8,47 @@ export interface SlicingProblem {
   type: SlicingType;
 }
 
+// 权重随机辅助函数
+function weightedChoice<T>(options: { item: T; weight: number }[]): T {
+  let totalWeight = 0;
+  for (const opt of options) totalWeight += opt.weight;
+  
+  let random = Math.random() * totalWeight;
+  for (const opt of options) {
+    random -= opt.weight;
+    if (random <= 0) return opt.item;
+  }
+  return options[options.length - 1].item;
+}
+
 export function generateSlicingProblem(type: SlicingType, useIntersection: boolean = false): SlicingProblem {
   let attempt = 0;
-  // Try up to 20 times to generate a valid puzzle with unique solution
-  while (attempt < 20) {
+  // Increase attempts significantly to ensure we find a valid puzzle
+  // especially given the strict global uniqueness check.
+  const maxAttempts = useIntersection ? 200 : 100;
+
+  while (attempt < maxAttempts) {
     attempt++;
     const result = tryGenerate(type, useIntersection);
     if (result) return result;
   }
+
+  // If we fail to generate intersection puzzle, fallback to standard unique puzzle
+  if (useIntersection) {
+    console.warn("Failed to generate intersection puzzle, falling back to standard unique puzzle.");
+    return generateSlicingProblem(type, false);
+  }
   
-  // Fallback: if intersection logic fails too many times, return a simpler valid one
-  // or just return the last attempt even if it might be imperfect (though tryGenerate checks validity)
-  return tryGenerate(type, false)!;
+  // If we fail standard puzzle, this is critical. 
+  // Try one last time with a very simple block configuration that is almost guaranteed to work.
+  // Or just return the last result if we could track "best effort".
+  // For now, let's try a simpler type if original failed.
+  if (type !== 'block') {
+      const fallback = tryGenerate('block', false);
+      if (fallback) return fallback;
+  }
+
+  throw new Error("Failed to generate puzzle after multiple attempts");
 }
 
 function tryGenerate(type: SlicingType, useIntersection: boolean): SlicingProblem | null {
@@ -44,279 +72,360 @@ function tryGenerate(type: SlicingType, useIntersection: boolean): SlicingProble
     grid[r * 9 + c] = num;
   };
 
-  let targetIndex = -1;
+  // 1. 确定目标位置
   let targetRow = -1;
   let targetCol = -1;
-
-  // --- Generation Logic ---
-
+  
   if (type === 'block') {
-    // 1. Pick a block
     const br = Math.floor(Math.random() * 3) * 3;
     const bc = Math.floor(Math.random() * 3) * 3;
-    
-    // 2. Pick target cell
     targetRow = br + Math.floor(Math.random() * 3);
     targetCol = bc + Math.floor(Math.random() * 3);
-    targetIndex = getIndex(targetRow, targetCol);
+  } else {
+    targetRow = Math.floor(Math.random() * 9);
+    targetCol = Math.floor(Math.random() * 9);
+  }
+  
+  const targetIndex = getIndex(targetRow, targetCol);
+  const targetBr = Math.floor(targetRow / 3) * 3;
+  const targetBc = Math.floor(targetCol / 3) * 3;
 
-    // 3. To require Intersection (Pointing/Claiming), we need to eliminate candidate positions
-    // NOT by direct numbers in rows/cols, but by "Virtual" restrictions.
-    // However, generating a specific Pointing Pair puzzle from scratch is complex.
-    // Simpler approach:
-    //    a. Eliminate some neighbors in the block with "Block Slicing" (rows/cols outside)
-    //    b. If useIntersection is true, we purposely DON'T put a direct slicer in one row/col,
-    //       but instead place a structure that creates a Pointing Pair in a neighboring block/line.
-    
-    // For now, let's stick to the "Generate -> Validate" approach.
-    // We generate a board with random "slicers" (TargetNum in other rows/cols).
-    // If useIntersection is TRUE, we might need FEWER direct slicers, 
-    // relying on implicit elimination.
+  const protectedIndices = new Set<number>();
+  protectedIndices.add(targetIndex);
 
-    const rowsToCover = [0, 1, 2].map(x => br + x).filter(r => r !== targetRow);
-    const colsToCover = [0, 1, 2].map(x => bc + x).filter(c => c !== targetCol);
+  // --- 构造核心：确保 TargetIndex 至少是一个解 ---
+  
+  if (type === 'block') {
+    const rowsToCover = [0, 1, 2].map(x => targetBr + x).filter(r => r !== targetRow);
+    const colsToCover = [0, 1, 2].map(x => targetBc + x).filter(c => c !== targetCol);
 
-    // Randomly decide which row/col to SKIP direct covering if we want intersection logic
-    // (This increases chance that a solver MUST use intersection to solve it)
-    let skipRow = -1;
-    let skipCol = -1;
-    
+    let intersectRow = -1;
+    let intersectCol = -1;
+
     if (useIntersection) {
       if (Math.random() > 0.5 && rowsToCover.length > 0) {
-        skipRow = rowsToCover[Math.floor(Math.random() * rowsToCover.length)];
+        intersectRow = weightedChoice(rowsToCover.map(r => ({ item: r, weight: 1 })));
       } else if (colsToCover.length > 0) {
-        skipCol = colsToCover[Math.floor(Math.random() * colsToCover.length)];
+        intersectCol = weightedChoice(colsToCover.map(c => ({ item: c, weight: 1 })));
       }
     }
 
-    // Place Slicers (TargetNum)
+    // 行 Slicers
     for (const r of rowsToCover) {
-      if (r === skipRow) continue; // Skip placing direct slicer here
-      
-      const validCols = [0,1,2,3,4,5,6,7,8].filter(c => 
-        (c < bc || c >= bc + 3) && isSafe(r, c, targetNum)
-      );
-      if (validCols.length > 0) {
-        placeNum(r, validCols[Math.floor(Math.random() * validCols.length)], targetNum);
-      }
-    }
-
-    for (const c of colsToCover) {
-      if (c === skipCol) continue;
-      
-      const validRows = [0,1,2,3,4,5,6,7,8].filter(r => 
-        (r < br || r >= br + 3) && isSafe(r, c, targetNum)
-      );
-      if (validRows.length > 0) {
-        placeNum(validRows[Math.floor(Math.random() * validRows.length)], c, targetNum);
-      }
-    }
-
-    // If we skipped a row/col, we MUST ensure that the TargetNum is eliminated from that row/col
-    // via an Intersection (Pointing Pair).
-    // E.g., if we skipped `skipRow`, we need another block in `skipRow` where TargetNum 
-    // is restricted to `skipRow` (Claiming) or a block where TargetNum is restricted to `skipRow` (Pointing).
-    // This is hard to construct deterministically.
-    // Instead, we will rely on "Noise" (Random TargetNums placed elsewhere) to potentially create these structures,
-    // and then the Solver will validate if it's uniquely solvable.
-    
-    // To increase chances of Intersection:
-    // Place more TargetNums in other blocks to restrict candidates.
-    if (useIntersection) {
-        // Try to place a few more TargetNums in random safe spots
-        for(let k=0; k<3; k++) {
-            let r = Math.floor(Math.random() * 9);
-            let c = Math.floor(Math.random() * 9);
-            if(isSafe(r, c, targetNum)) placeNum(r, c, targetNum);
-        }
-    }
-
-  } else {
-    // Row/Col Logic (Simpler, mostly keeping existing logic but validating later)
-    if (type === 'row') {
-        targetRow = Math.floor(Math.random() * 9);
-        targetCol = Math.floor(Math.random() * 9);
-    } else {
-        targetRow = Math.floor(Math.random() * 9);
-        targetCol = Math.floor(Math.random() * 9);
-    }
-    targetIndex = getIndex(targetRow, targetCol);
-    
-    // Standard filling for Row/Col type... (simplified from original for brevity)
-    // For Row type: eliminate other columns
-    if (type === 'row') {
-        const otherCols = [0,1,2,3,4,5,6,7,8].filter(c => c !== targetCol);
-        // Fill some with noise numbers
-        const fillCount = 3;
-        const colsToFill = otherCols.slice(0, fillCount);
-        const colsToSlice = otherCols.slice(fillCount); // Place TargetNum here
+      if (r === intersectRow) {
+        // Pointing Pair Logic (Force TargetNum in neighbor block to be in Row r)
+        const neighborBc = (targetBc + 3) % 9;
+        const otherRowsInBand = [targetBr, targetBr+1, targetBr+2].filter(row => row !== r);
         
-        for(const c of colsToFill) {
-            let n = (targetNum % 9) + 1; // Simple different num
-            if(isSafe(targetRow, c, n)) placeNum(targetRow, c, n);
-        }
-        for(const c of colsToSlice) {
-             const validRows = [0,1,2,3,4,5,6,7,8].filter(r => r !== targetRow && isSafe(r, c, targetNum));
-             if(validRows.length) placeNum(validRows[0], c, targetNum);
-        }
-    } else {
-        // Col type
-        const otherRows = [0,1,2,3,4,5,6,7,8].filter(r => r !== targetRow);
-        const fillCount = 3;
-        const rowsToFill = otherRows.slice(0, fillCount);
-        const rowsToSlice = otherRows.slice(fillCount);
-        
-        for(const r of rowsToFill) {
-             let n = (targetNum % 9) + 1;
-             if(isSafe(r, targetCol, n)) placeNum(r, targetCol, n);
-        }
-        for(const r of rowsToSlice) {
-             const validCols = [0,1,2,3,4,5,6,7,8].filter(c => c !== targetCol && isSafe(r, c, targetNum));
-             if(validCols.length) placeNum(r, validCols[0], targetNum);
-        }
-    }
-  }
-
-  // Add Noise (Interference)
-  // Crucial: Noise helps form Blocks for Intersection logic.
-  // We place 10-20 random numbers.
-  for (let k = 0; k < 20; k++) {
-    const r = Math.floor(Math.random() * 9);
-    const c = Math.floor(Math.random() * 9);
-    const idx = r * 9 + c;
-    
-    if (idx === targetIndex) continue;
-
-    if (grid[idx] === null) {
-      // If we want to encourage Intersection logic for TargetNum, 
-      // we should NOT place TargetNum randomly as noise too often (it might over-simplify).
-      // But we DO need TargetNum to form the restricting blocks.
-      // Strategy: 20% chance to place TargetNum, 80% other numbers.
-      
-      const placeTarget = Math.random() < 0.2;
-      const numToPlace = placeTarget ? targetNum : (Math.floor(Math.random() * 9) + 1);
-
-      if (isSafe(r, c, numToPlace)) {
-        placeNum(r, c, numToPlace);
-      }
-    }
-  }
-
-  // --- VALIDATION STEP ---
-  const uniqueSolution = solve(grid, targetNum, targetIndex);
-  
-  // If we require intersection, we must ensure that BASIC slicing is NOT enough.
-  // i.e., Solve with ONLY basic logic should fail (return false or multiple candidates),
-  // while Solve with Intersection should succeed.
-  
-  if (useIntersection) {
-     const solvedWithBasic = solveBasic(grid, targetNum, targetIndex);
-     // We want: Basic fails (returns false/null), but Advanced (solve) succeeds.
-     if (!solvedWithBasic && uniqueSolution) {
-         return { grid, targetNum, targetIndex, type };
-     }
-     return null; // Failed requirements
-  }
-
-  // Normal mode: Just needs to be uniquely solvable (Basic logic is fine)
-  if (uniqueSolution) {
-      return { grid, targetNum, targetIndex, type };
-  }
-
-  return null;
-}
-
-// --- SOLVER LOGIC ---
-
-// Returns true if TargetIndex is the ONLY possible place for TargetNum
-function solve(grid: (number|null)[], targetNum: number, targetIndex: number): boolean {
-    // 1. Initialize Candidates
-    // candidates[i] = true means cell i CAN contain targetNum
-    let candidates = new Array(81).fill(true);
-    
-    // Initial elimination based on existing numbers
-    for(let i=0; i<81; i++) {
-        if (grid[i] !== null) {
-            candidates[i] = false; // Occupied
-            if (grid[i] === targetNum) {
-                // Eliminate peer candidates
-                eliminatePeers(candidates, i);
+        for (const or of otherRowsInBand) {
+            for (let k = 0; k < 3; k++) {
+                const nc = neighborBc + k;
+                if (!isSafe(or, nc, targetNum)) continue;
+                // MUST fill with noise
+                let placed = false;
+                const start = Math.floor(Math.random() * 9) + 1;
+                for(let offset = 0; offset < 9; offset++) {
+                    const n = ((start + offset - 1) % 9) + 1;
+                    if (n !== targetNum && isSafe(or, nc, n)) {
+                        placeNum(or, nc, n);
+                        placed = true;
+                        break;
+                    }
+                }
+                if (!placed) return null; // Can't construct pointing pair
             }
         }
+      } else {
+        // Direct Slicer: MUST place TargetNum
+        const validCols = [0,1,2,3,4,5,6,7,8].filter(c => 
+          (c < targetBc || c >= targetBc + 3) && isSafe(r, c, targetNum)
+        );
+        if (validCols.length > 0) {
+           const chosenCol = validCols[Math.floor(Math.random() * validCols.length)];
+           placeNum(r, chosenCol, targetNum);
+        } else {
+           return null;
+        }
+      }
     }
 
-    let changed = true;
-    while(changed) {
-        changed = false;
-        
-        // Strategy 1: Hidden Singles (Basic Slicing) - applied implicitly by eliminatePeers check?
-        // Actually eliminatePeers just removes candidates. We need to check if any unit has only 1 spot.
-        // But for "Pointing/Claiming", we need to run that logic explicitly.
-        
-        // Apply Pointing/Claiming (Intersection)
-        if (applyIntersection(candidates)) changed = true;
-        
-        // Apply Hidden Singles? 
-        // If we find a Hidden Single that is NOT our target, we should "fill" it virtually?
-        // For this specific puzzle type, we only care about TargetNum's positions.
-        // We assume the user is only looking for TargetNum.
-        // So we just iterate reducing candidates for TargetNum.
+    // 列 Slicers
+    for (const c of colsToCover) {
+      if (c === intersectCol) {
+         const neighborBr = (targetBr + 3) % 9;
+         const otherColsInStack = [targetBc, targetBc+1, targetBc+2].filter(col => col !== c);
+         for (const oc of otherColsInStack) {
+             for (let k = 0; k < 3; k++) {
+                 const nr = neighborBr + k;
+                 if (!isSafe(nr, oc, targetNum)) continue;
+                 let placed = false;
+                 const start = Math.floor(Math.random() * 9) + 1;
+                 for (let offset = 0; offset < 9; offset++) {
+                     const n = ((start + offset - 1) % 9) + 1;
+                     if (n !== targetNum && isSafe(nr, oc, n)) {
+                         placeNum(nr, oc, n);
+                         placed = true;
+                         break;
+                     }
+                 }
+                 if (!placed) return null;
+             }
+         }
+      } else {
+        const validRows = [0,1,2,3,4,5,6,7,8].filter(r => 
+          (r < targetBr || r >= targetBr + 3) && isSafe(r, c, targetNum)
+        );
+        if (validRows.length > 0) {
+           const chosenRow = validRows[Math.floor(Math.random() * validRows.length)];
+           placeNum(chosenRow, c, targetNum);
+        } else {
+           return null; 
+        }
+      }
     }
-    
-    // Check if TargetIndex is the unique candidate
-    // Actually, we need to check if TargetIndex is the ONLY candidate left in the whole board? 
-    // No, just in its Row, Col, or Block.
-    // If in the Target's Block, only TargetIndex is true, then it's solved.
-    
-    // Final Verification:
-    // We must ensure that targetIndex is the ONLY forced move on the entire board for targetNum.
-    // "Forced move" means a Hidden Single in some unit (Block, Row, or Col).
-    
-    let forcedPositions = new Set<number>();
-    
-    for (let idx = 0; idx < 81; idx++) {
+  } else {
+    // Row/Col Constructive Logic
+    if (type === 'row') {
+        const otherCols = [0,1,2,3,4,5,6,7,8].filter(c => c !== targetCol);
+        for (const c of otherCols) {
+             if (Math.random() > 0.5) {
+                 const validRows = [0,1,2,3,4,5,6,7,8].filter(r => r !== targetRow && isSafe(r, c, targetNum));
+                 if (validRows.length > 0) {
+                     placeNum(validRows[Math.floor(Math.random() * validRows.length)], c, targetNum);
+                 } else {
+                     let placed = false;
+                     const start = Math.floor(Math.random() * 9) + 1;
+                     for(let offset = 0; offset < 9; offset++) {
+                        const n = ((start + offset - 1) % 9) + 1;
+                        if (n !== targetNum && isSafe(targetRow, c, n)) {
+                            placeNum(targetRow, c, n);
+                            placed = true;
+                            break;
+                        }
+                     }
+                     if (!placed) return null;
+                 }
+             } else {
+                 let placed = false;
+                 const start = Math.floor(Math.random() * 9) + 1;
+                 for(let offset = 0; offset < 9; offset++) {
+                    const n = ((start + offset - 1) % 9) + 1;
+                    if (n !== targetNum && isSafe(targetRow, c, n)) {
+                        placeNum(targetRow, c, n);
+                        placed = true;
+                        break;
+                    }
+                 }
+                 if (!placed) {
+                     const validRows = [0,1,2,3,4,5,6,7,8].filter(r => r !== targetRow && isSafe(r, c, targetNum));
+                     if (validRows.length > 0) {
+                         placeNum(validRows[Math.floor(Math.random() * validRows.length)], c, targetNum);
+                     } else {
+                         return null;
+                     }
+                 }
+             }
+        }
+    } else {
+        const otherRows = [0,1,2,3,4,5,6,7,8].filter(r => r !== targetRow);
+        for (const r of otherRows) {
+             if (Math.random() > 0.5) {
+                 const validCols = [0,1,2,3,4,5,6,7,8].filter(c => c !== targetCol && isSafe(r, c, targetNum));
+                 if (validCols.length > 0) {
+                     placeNum(r, validCols[Math.floor(Math.random() * validCols.length)], targetNum);
+                 } else {
+                     let placed = false;
+                     const start = Math.floor(Math.random() * 9) + 1;
+                     for(let offset = 0; offset < 9; offset++) {
+                        const n = ((start + offset - 1) % 9) + 1;
+                        if (n !== targetNum && isSafe(r, targetCol, n)) {
+                            placeNum(r, targetCol, n);
+                            placed = true;
+                            break;
+                        }
+                     }
+                     if (!placed) return null;
+                 }
+             } else {
+                 let placed = false;
+                 const start = Math.floor(Math.random() * 9) + 1;
+                 for(let offset = 0; offset < 9; offset++) {
+                    const n = ((start + offset - 1) % 9) + 1;
+                    if (n !== targetNum && isSafe(r, targetCol, n)) {
+                        placeNum(r, targetCol, n);
+                        placed = true;
+                        break;
+                    }
+                 }
+                 if (!placed) {
+                     const validCols = [0,1,2,3,4,5,6,7,8].filter(c => c !== targetCol && isSafe(r, c, targetNum));
+                     if (validCols.length > 0) {
+                         placeNum(r, validCols[Math.floor(Math.random() * validCols.length)], targetNum);
+                     } else {
+                         return null;
+                     }
+                 }
+             }
+        }
+    }
+  }
+
+  // --- 2. 性能核心：消除全盘其他 Hidden Singles ---
+  
+  for (let iter = 0; iter < 5; iter++) { 
+      const candidates = new Array(81).fill(true);
+      for(let i=0; i<81; i++) {
+        if (grid[i] !== null) {
+            candidates[i] = false;
+            if (grid[i] === targetNum) eliminatePeers(candidates, i);
+        }
+      }
+      
+      let unintendedFound = false;
+      const safeIndices = []; 
+      
+      for (let idx = 0; idx < 81; idx++) {
         if (!candidates[idx]) continue;
+        if (idx === targetIndex) continue;
         
         const r = Math.floor(idx / 9);
         const c = idx % 9;
         const br = Math.floor(r/3)*3;
         const bc = Math.floor(c/3)*3;
         
-        // Check if unique in Row
         let uniqueInRow = true;
         for(let k=0; k<9; k++) if(k !== c && candidates[r*9 + k]) { uniqueInRow = false; break; }
         
-        // Check if unique in Col
         let uniqueInCol = true;
         for(let k=0; k<9; k++) if(k !== r && candidates[k*9 + c]) { uniqueInCol = false; break; }
         
-        // Check if unique in Block
-        let uniqueInBlock = true;
+        let count = 0;
         for(let i=0; i<3; i++)
-            for(let j=0; j<3; j++) {
-                const bIdx = (br+i)*9 + (bc+j);
-                if(bIdx !== idx && candidates[bIdx]) { uniqueInBlock = false; break; } // break inner loop? needs label or flag
-            }
-        // Correct block check logic with label or simpler structure
-        if (uniqueInBlock) {
-             // double check
-             let count = 0;
-             for(let i=0; i<3; i++)
-                for(let j=0; j<3; j++)
-                    if(candidates[(br+i)*9 + (bc+j)]) count++;
-             if (count !== 1) uniqueInBlock = false;
-        }
+            for(let j=0; j<3; j++)
+                if(candidates[(br+i)*9 + (bc+j)]) count++;
+        const uniqueInBlock = (count === 1);
 
         if (uniqueInRow || uniqueInCol || uniqueInBlock) {
-            forcedPositions.add(idx);
+            safeIndices.push(idx);
+            unintendedFound = true;
         }
-    }
+      }
+      
+      if (!unintendedFound) break; 
+      
+      for (const idx of safeIndices) {
+          const r = Math.floor(idx / 9);
+          const c = idx % 9;
+          let placed = false;
+          const start = Math.floor(Math.random() * 9) + 1;
+          for(let offset = 0; offset < 9; offset++) {
+             const n = ((start + offset - 1) % 9) + 1;
+             if (n !== targetNum && isSafe(r, c, n)) {
+                 placeNum(r, c, n);
+                 placed = true;
+                 break;
+             }
+          }
+          if (!placed) {
+              return null;
+          }
+      }
+  }
+
+  // 3. 填充额外噪音 (Decor)
+  const noiseCount = useIntersection ? 15 : 10;
+  for (let k = 0; k < noiseCount; k++) {
+    const r = Math.floor(Math.random() * 9);
+    const c = Math.floor(Math.random() * 9);
+    const idx = r * 9 + c;
     
-    // There must be EXACTLY ONE forced position, and it must be our target.
-    return forcedPositions.size === 1 && forcedPositions.has(targetIndex);
+    if (protectedIndices.has(idx)) continue;
+    if (idx === targetIndex) continue;
+    if (grid[idx] !== null) continue;
+
+    if (r >= targetBr && r < targetBr + 3 && c >= targetBc && c < targetBc + 3) {
+        if (Math.random() > 0.2) continue; 
+    }
+
+    const placeTarget = Math.random() < 0.1;
+    const numToPlace = placeTarget ? targetNum : (Math.floor(Math.random() * 9) + 1);
+
+    if (isSafe(r, c, numToPlace)) {
+      placeNum(r, c, numToPlace);
+    }
+  }
+
+  // --- 验证步骤 ---
+  const uniqueSolution = solve(grid, targetNum, targetIndex);
+  
+  if (useIntersection) {
+     const solvedWithBasic = solveBasic(grid, targetNum, targetIndex);
+     if (!solvedWithBasic && uniqueSolution) {
+         return { grid, targetNum, targetIndex, type };
+     }
+     return null;
+  }
+
+  if (uniqueSolution) {
+      if (type === 'row' || type === 'col') {
+         const candidates = new Array(81).fill(true);
+         for(let i=0; i<81; i++) {
+             if (grid[i] !== null) {
+                 candidates[i] = false;
+                 if (grid[i] === targetNum) eliminatePeers(candidates, i);
+             }
+         }
+         if (useIntersection) {
+             let changed = true;
+             while(changed) {
+                 changed = false;
+                 if (applyIntersection(candidates)) changed = true;
+             }
+         }
+
+         const r = Math.floor(targetIndex / 9);
+         const c = targetIndex % 9;
+
+         if (type === 'row') {
+             let uniqueInRow = true;
+             for(let k=0; k<9; k++) if(k !== c && candidates[r*9 + k]) { uniqueInRow = false; break; }
+             if (!uniqueInRow) return null;
+         } else {
+             let uniqueInCol = true;
+             for(let k=0; k<9; k++) if(k !== r && candidates[k*9 + c]) { uniqueInCol = false; break; }
+             if (!uniqueInCol) return null;
+         }
+      }
+
+      return { grid, targetNum, targetIndex, type };
+  }
+
+  return null;
 }
 
-// Basic Solver (No Intersection)
+// --- 求解器逻辑 ---
+
+function solve(grid: (number|null)[], targetNum: number, targetIndex: number): boolean {
+    let candidates = new Array(81).fill(true);
+    
+    // 初始化候选数
+    for(let i=0; i<81; i++) {
+        if (grid[i] !== null) {
+            candidates[i] = false;
+            if (grid[i] === targetNum) eliminatePeers(candidates, i);
+        }
+    }
+
+    let changed = true;
+    while(changed) {
+        changed = false;
+        // 应用交集逻辑 (Pointing/Claiming)
+        if (applyIntersection(candidates)) changed = true;
+    }
+    
+    return checkUniqueForTarget(candidates, targetIndex);
+}
+
 function solveBasic(grid: (number|null)[], targetNum: number, targetIndex: number): boolean {
     let candidates = new Array(81).fill(true);
     for(let i=0; i<81; i++) {
@@ -325,7 +434,11 @@ function solveBasic(grid: (number|null)[], targetNum: number, targetIndex: numbe
             if (grid[i] === targetNum) eliminatePeers(candidates, i);
         }
     }
-    
+    // 不应用 applyIntersection，只看基本排除
+    return checkUniqueForTarget(candidates, targetIndex);
+}
+
+function checkUniqueForTarget(candidates: boolean[], targetIndex: number): boolean {
     let forcedPositions = new Set<number>();
     
     for (let idx = 0; idx < 81; idx++) {
@@ -336,15 +449,15 @@ function solveBasic(grid: (number|null)[], targetNum: number, targetIndex: numbe
         const br = Math.floor(r/3)*3;
         const bc = Math.floor(c/3)*3;
         
-        // Check if unique in Row
+        // 检查行唯一 (Unique in Row)
         let uniqueInRow = true;
         for(let k=0; k<9; k++) if(k !== c && candidates[r*9 + k]) { uniqueInRow = false; break; }
         
-        // Check if unique in Col
+        // 检查列唯一 (Unique in Col)
         let uniqueInCol = true;
         for(let k=0; k<9; k++) if(k !== r && candidates[k*9 + c]) { uniqueInCol = false; break; }
         
-        // Check if unique in Block
+        // 检查宫唯一 (Unique in Block)
         let count = 0;
         for(let i=0; i<3; i++)
             for(let j=0; j<3; j++)
@@ -356,6 +469,9 @@ function solveBasic(grid: (number|null)[], targetNum: number, targetIndex: numbe
         }
     }
     
+    // 关键修复：
+    // 必须确保全盘只有一个位置是“必须填”的（Hidden Single），且该位置就是我们的 targetIndex。
+    // 如果 forcedPositions.size > 1，说明有多个位置都可以通过排除法得出，这是多解（对于寻找特定数字的任务来说）。
     return forcedPositions.size === 1 && forcedPositions.has(targetIndex);
 }
 
@@ -365,11 +481,8 @@ function eliminatePeers(candidates: boolean[], idx: number) {
     const br = Math.floor(r/3)*3;
     const bc = Math.floor(c/3)*3;
     
-    // Row
     for(let i=0; i<9; i++) candidates[r*9 + i] = false;
-    // Col
     for(let i=0; i<9; i++) candidates[i*9 + c] = false;
-    // Block
     for(let i=0; i<3; i++)
         for(let j=0; j<3; j++)
             candidates[(br+i)*9 + (bc+j)] = false;
@@ -378,7 +491,7 @@ function eliminatePeers(candidates: boolean[], idx: number) {
 function applyIntersection(candidates: boolean[]): boolean {
     let changed = false;
     
-    // 1. Pointing (Block -> Row/Col)
+    // 1. Pointing (宫 -> 行/列)
     for (let b = 0; b < 9; b++) {
         const br = Math.floor(b / 3) * 3;
         const bc = (b % 3) * 3;
@@ -390,15 +503,13 @@ function applyIntersection(candidates: boolean[]): boolean {
                 if(candidates[idx]) indices.push({r: br+i, c: bc+j});
             }
             
-        if (indices.length <= 1) continue; // 0 or 1 candidate, nothing to point
+        if (indices.length <= 1) continue;
         
-        // Check Row Pointing
+        // 行 Pointing
         const firstR = indices[0].r;
         if (indices.every(p => p.r === firstR)) {
-            // All candidates in this block are in row firstR
-            // Eliminate others in this row
             for(let c=0; c<9; c++) {
-                if (c < bc || c >= bc + 3) { // Outside block
+                if (c < bc || c >= bc + 3) { 
                     const idx = firstR*9 + c;
                     if (candidates[idx]) {
                         candidates[idx] = false;
@@ -408,11 +519,11 @@ function applyIntersection(candidates: boolean[]): boolean {
             }
         }
         
-        // Check Col Pointing
+        // 列 Pointing
         const firstC = indices[0].c;
         if (indices.every(p => p.c === firstC)) {
             for(let r=0; r<9; r++) {
-                if (r < br || r >= br + 3) { // Outside block
+                if (r < br || r >= br + 3) {
                     const idx = r*9 + firstC;
                     if (candidates[idx]) {
                         candidates[idx] = false;
@@ -422,8 +533,5 @@ function applyIntersection(candidates: boolean[]): boolean {
             }
         }
     }
-    
-    // 2. Claiming (Row/Col -> Block) - Can be added if needed, but Pointing is most common
-    
     return changed;
 }

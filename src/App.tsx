@@ -35,7 +35,7 @@ function App() {
               <ModeCard 
                 title="排除技巧" 
                 subtitle="Slicing / Cross-Hatching"
-                description="利用行列交叉排除法，在九宫格中精准定位目标数字的唯一栖息地。"
+                description="利用行列交叉排除法，在九宫格中精准定位目标数字的唯一栖息地。只有一个数字可以推理得出，题目可能全局无解。"
                 icon={<Target className="w-8 h-8 text-white" />}
                 gradient="from-rose-500 to-pink-600"
                 glowColor="bg-rose-500"
