@@ -98,6 +98,7 @@ export function Layout({ children, currentMode, onNavigate }: LayoutProps) {
       <footer className="border-t border-white/5 py-8 mt-auto relative z-10">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-slate-500 text-sm">© 2025 数感训练系统 - 提升你的数独直觉</p>
+          <p className="text-slate-500 text-sm mt-2">数独学习欢迎加QQ群：368802169</p>
         </div>
       </footer>
     </div>
